@@ -29,7 +29,7 @@ DARK  = "#1F3864"; ORG = "#C55A11"; LGRAY = "#D9D9D9"
 st.markdown("""
 <style>
 [data-testid="stSidebar"] { background:#eef2f9; }
-.block-container { padding-top:1.2rem; }
+.block-container { padding-top:3rem; }
 h1 { color:#1F3864; font-size:1.5rem; margin-bottom:0.2rem; }
 h2,h3 { color:#1F3864; }
 .kpi { background:white; border:1px solid #D9E1F2; border-left:5px solid #1F3864;
