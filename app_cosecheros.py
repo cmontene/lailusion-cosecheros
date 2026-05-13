@@ -64,6 +64,7 @@ def load_data():
 camps, cos = load_data()
 kg_col = next(c for c in camps.columns if "KG Total" in c and "Suelta" not in c)
 TIPOS  = ["Cortador", "Alzador", "Pepeador"]
+PLURAL = {"Cortador": "Cortadores", "Alzador": "Alzadores", "Pepeador": "Pepeadores"}
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 st.sidebar.markdown("## 🌴 Hacienda La Ilusión SAS")
@@ -124,7 +125,7 @@ if "individual" in vista:
     kg_jorn_alz = camp_row.get("KG/Jornal Alz.", None)
     has_jorn = float(camp_row.get("Has/Jornal Cort.", 0) or 0)
     ciclo    = camp_row.get("Ciclo Prom", np.nan)
-    score    = camp_row.get("Score", None)
+    score    = camp_row.get("Score (0-100)", None)
     grado    = camp_row.get("Grado", None)
     GRADE_CSS = {"A": "background:#375623;color:white", "B": "background:#70AD47;color:white",
                  "C": "background:#FFBF00;color:#1F3864", "D": "background:#C00000;color:white"}
@@ -160,7 +161,7 @@ if "individual" in vista:
             sub = cos_camp[cos_camp["Tipo Labor"]==tipo].reset_index(drop=True)
             if sub.empty:
                 continue
-            badge = f'<span class="tipo-{tipo.lower()}">{tipo}s ({len(sub)})</span>'
+            badge = f'<span class="tipo-{tipo.lower()}">{PLURAL[tipo]} ({len(sub)})</span>'
             st.markdown(badge, unsafe_allow_html=True)
             total_kg = sub["KG Total"].sum()
             disp = sub[["Cosechero","KG Total","Días Trabajados","KG/Día"]].copy()
@@ -177,7 +178,7 @@ if "individual" in vista:
             if has_col:
                 cols_show.append("Has/Jornal")
             st.dataframe(disp[cols_show], use_container_width=True, hide_index=True)
-            tot_str = f"Total {tipo.lower()}s: **{total_kg:,.0f} kg** · {sub['Días Trabajados'].sum()} jornales"
+            tot_str = f"Total {PLURAL[tipo].lower()}: **{total_kg:,.0f} kg** · {sub['Días Trabajados'].sum()} jornales"
             if tipo == "Cortador":
                 tot_str += f" · KG/jorn: **{kg_jorn:,.0f}** · Has/jornal: **{has_jorn:.2f}**"
             elif tipo == "Alzador" and pd.notna(kg_jorn_alz):
@@ -221,7 +222,7 @@ if "individual" in vista:
                 ax.axvline(cos_h[tipo], color=DARK, linestyle="--", linewidth=1,
                            label=f"Hda: {cos_h[tipo]:,.0f}")
             ax.set_yticks(yp); ax.set_yticklabels(names, fontsize=7.5)
-            ax.set_title(f"{tipo}s", fontsize=9, fontweight="bold", color=col_t)
+            ax.set_title(PLURAL[tipo], fontsize=9, fontweight="bold", color=col_t)
             ax.set_xlabel("KG/día", fontsize=8)
             ax.spines[["top","right"]].set_visible(False)
             ax.xaxis.grid(True, color=LGRAY, linestyle="--", linewidth=0.5, zorder=0)
@@ -266,11 +267,17 @@ elif "Análisis" in vista:
 
     zonas_all = sorted(cos["Zona"].dropna().unique())
     tipos_all = [t for t in TIPOS if t in cos["Tipo Labor"].unique()]
-    col_f1, col_f2 = st.sidebar.columns(2)
     zona_f  = st.sidebar.multiselect("Zonas",  zonas_all, default=zonas_all)
     tipo_f  = st.sidebar.multiselect("Tipo de labor", tipos_all, default=tipos_all)
+    fecha_min2 = cos["Inicio"].min().date()
+    fecha_max2 = cos["Inicio"].max().date()
+    fechas_f2  = st.sidebar.date_input("Rango de fechas", value=(fecha_min2, fecha_max2),
+                                        min_value=fecha_min2, max_value=fecha_max2, key="f2")
 
     cos_f = cos[cos["Zona"].isin(zona_f) & cos["Tipo Labor"].isin(tipo_f)].copy() if zona_f and tipo_f else cos.copy()
+    if isinstance(fechas_f2, (list, tuple)) and len(fechas_f2) == 2:
+        f_ini2 = pd.Timestamp(fechas_f2[0]); f_fin2 = pd.Timestamp(fechas_f2[1])
+        cos_f = cos_f[(cos_f["Inicio"] >= f_ini2) & (cos_f["Inicio"] <= f_fin2)]
 
     # ── KPIs globales ────────────────────────────────────────────────────────
     st.markdown("### Resumen hacienda")
@@ -330,7 +337,7 @@ elif "Análisis" in vista:
         with tab:
             sub_t = cos_f[cos_f["Tipo Labor"]==tipo]
             if sub_t.empty:
-                st.info(f"No hay datos de {tipo.lower()}s con los filtros seleccionados.")
+                st.info(f"No hay datos de {PLURAL[tipo].lower()} con los filtros seleccionados.")
                 continue
             rank = (sub_t.groupby(["Cosechero","Zona"])
                     .agg(KG_total=("KG Total","sum"),
@@ -357,11 +364,11 @@ elif "Análisis" in vista:
                 ax_r.text(r["KG_dia"] + max(top_n["KG_dia"])*0.01, yi,
                           f"{r['KG_dia']:,.0f}", va="center", fontsize=7.5)
             ax_r.axvline(avg_tipo, color=T_COL[tipo], linestyle="--", linewidth=1.3,
-                         label=f"Prom. {tipo.lower()}s: {avg_tipo:,.0f}")
+                         label=f"Prom. {PLURAL[tipo].lower()}: {avg_tipo:,.0f}")
             names_r = [" ".join(n.split()[:2]) for n in top_n["Cosechero"]]
             ax_r.set_yticks(yp); ax_r.set_yticklabels(names_r, fontsize=8)
             ax_r.set_xlabel("KG por día promedio")
-            ax_r.set_title(f"Top {n_top} {tipo.lower()}s por KG/día", fontweight="bold")
+            ax_r.set_title(f"Top {n_top} {PLURAL[tipo].lower()} por KG/día", fontweight="bold")
             ax_r.spines[["top","right"]].set_visible(False)
             ax_r.xaxis.grid(True, color=LGRAY, linestyle="--", linewidth=0.5, zorder=0)
             ax_r.set_axisbelow(True); ax_r.tick_params(left=False)
@@ -400,10 +407,17 @@ else:
     # filtros sidebar
     zonas_all3 = sorted(camps["Zona"].dropna().unique())
     zona_f3    = st.sidebar.multiselect("Zonas", zonas_all3, default=zonas_all3)
+    fecha_min3 = camps["Inicio"].min().date()
+    fecha_max3 = camps["Inicio"].max().date()
+    fechas_f3  = st.sidebar.date_input("Rango de fechas", value=(fecha_min3, fecha_max3),
+                                        min_value=fecha_min3, max_value=fecha_max3, key="f3")
     GRADE_ORDER = {"A": 0, "B": 1, "C": 2, "D": 3}
     GRADE_CSS3  = {"A": "#375623", "B": "#70AD47", "C": "#FFBF00", "D": "#C00000"}
 
     camps_f = camps[camps["Zona"].isin(zona_f3)].copy() if zona_f3 else camps.copy()
+    if isinstance(fechas_f3, (list, tuple)) and len(fechas_f3) == 2:
+        f_ini3 = pd.Timestamp(fechas_f3[0]); f_fin3 = pd.Timestamp(fechas_f3[1])
+        camps_f = camps_f[(camps_f["Inicio"] >= f_ini3) & (camps_f["Inicio"] <= f_fin3)]
 
     if score_col and grado_col:
         camps_f["_grade_ord"] = camps_f[grado_col].map(GRADE_ORDER).fillna(9)
