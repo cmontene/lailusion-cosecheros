@@ -76,7 +76,7 @@ vista = st.sidebar.radio("Vista", ["📋  Campaña individual", "📊  Análisis
 # ═══════════════════════════════════════════════════════════════════════════════
 # VISTA 1 — CAMPAÑA INDIVIDUAL
 # ═══════════════════════════════════════════════════════════════════════════════
-if "Campaña" in vista:
+if "individual" in vista:
 
     st.sidebar.markdown("**Seleccionar campaña**")
     zona_sel = st.sidebar.selectbox("Zona", sorted(camps["Zona"].dropna().unique()))
